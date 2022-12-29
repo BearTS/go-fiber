@@ -24,43 +24,6 @@ type User struct {
 	Email string `json:"email"`
 }
 
-func CreateResponseUser(user models.User) User {
-	return User{
-		ID:    user.Id.String(),
-		Email: user.Email,
-	}
-}
-
-func GetUsers(c *fiber.Ctx) error {
-	// get all users
-	var users []models.User
-	cursor, err := userCollection.Find(c.Context(), models.User{})
-	if err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	if err = cursor.All(c.Context(), &users); err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	var responseUsers []User
-	for _, user := range users {
-		responseUsers = append(responseUsers, CreateResponseUser(user))
-	}
-	return c.Status(200).JSON(responseUsers)
-}
-
-func CurrentUser(c *fiber.Ctx) error {
-	user := c.Locals("user").(*jwt.Token)
-	claims := user.Claims.(jwt.MapClaims)
-	email := claims["email"].(string)
-	var currentUser models.User
-	err := userCollection.FindOne(c.Context(), models.User{Email: email}).Decode(&currentUser)
-	if err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	response := CreateResponseUser(currentUser)
-	return c.Status(200).JSON(response)
-}
-
 type verifyBody struct {
 	Email string `json:"email"`
 	Otp   int    `json:"otp"`
@@ -150,6 +113,24 @@ func SendOtp(c *fiber.Ctx) error {
 		return c.Status(400).JSON(err.Error())
 	}
 	return c.Status(200).JSON(data)
+}
+
+func CurrentUser(c *fiber.Ctx) error {
+	user := c.Locals("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	email := claims["email"].(string)
+	var currentUser models.User
+	err := userCollection.FindOne(c.Context(), models.User{Email: email}).Decode(&currentUser)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "User not found",
+		})
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"user":    currentUser,
+	})
 }
 
 // genOtpAndSendOtp generates otp and sends it to the user

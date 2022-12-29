@@ -5,7 +5,8 @@ import (
 )
 
 type Otp struct {
-	Id   primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Otp  int                `bson:"otp,omitempty" json:"otp,omitempty"`
-	User primitive.ObjectID `bson:"user,omitempty" json:"user,omitempty"`
+	Id        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Otp       int                `bson:"otp,omitempty" json:"otp,omitempty"`
+	User      primitive.ObjectID `bson:"user,omitempty" json:"user,omitempty"`
+	ExpiresAt int64              `bson:"expiresAt,omitempty" json:"expireAt,omitempty"`
 }

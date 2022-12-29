@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
@@ -52,12 +53,19 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	var otpModel models.Otp
-	// find in db where user.id and otp match
+	// check about expiry time
 	err = otpCollection.FindOne(c.Context(), bson.M{"user": existingUser.Id, "otp": otp}).Decode(&otpModel)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"message": "Otp is invalid",
+		})
+	}
+	// check if otp is expired; expiresAt is a UnixMilli timestamp
+	if otpModel.ExpiresAt < time.Now().UnixMilli() {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "Otp is expired",
 		})
 	}
 	// delete otp from db
@@ -142,10 +150,12 @@ func genOtpAndSendOtp(c *fiber.Ctx, email string, id primitive.ObjectID) (interf
 	// find if otp already exists for the user then delete it
 	otpCollection.FindOneAndDelete(c.Context(), bson.M{"user": id})
 	otp = models.Otp{
-		Id:   primitive.NewObjectID(),
-		Otp:  otp_number,
-		User: id,
+		Id:        primitive.NewObjectID(),
+		Otp:       otp_number,
+		User:      id,
+		ExpiresAt: time.Now().Add(time.Minute * 5).UnixMilli(),
 	}
+
 	_, err := otpCollection.InsertOne(c.Context(), otp)
 	if err != nil {
 		return nil, err

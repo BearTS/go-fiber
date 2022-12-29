@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
@@ -16,6 +17,7 @@ import (
 )
 
 var userCollection *mongo.Collection = database.GetCollection(database.DB, "users")
+var otpCollection *mongo.Collection = database.GetCollection(database.DB, "otp")
 var validate = validator.New()
 
 type User struct {
@@ -139,5 +141,71 @@ func Login(c *fiber.Ctx) error {
 		"token":   token,
 	}
 	return c.Status(200).JSON(response)
+}
 
+func SendOtp(c *fiber.Ctx) error {
+	var user models.User
+	if err := c.BodyParser(&user); err != nil {
+		return c.Status(400).JSON(err.Error())
+	}
+	email := user.Email
+	if email == "" {
+		return c.Status(400).JSON("Email is required")
+	}
+
+	// check if email already exists
+	var existingUser models.User
+	userCollection.FindOne(c.Context(), bson.M{"email": email}).Decode(&existingUser)
+	if existingUser.Email != "" {
+		data, err := genOtpAndSendOtp(c, email, existingUser.Id)
+		if err != nil {
+			return c.Status(400).JSON(err.Error())
+		}
+		return c.Status(200).JSON(data)
+	}
+
+	if validationErr := validate.Struct(&user); validationErr != nil {
+		return c.Status(400).JSON(validationErr.Error())
+	}
+	newUser := models.User{
+		Id:    primitive.NewObjectID(),
+		Email: user.Email,
+	}
+	_, err := userCollection.InsertOne(c.Context(), newUser)
+	if err != nil {
+		return c.Status(400).JSON(err.Error())
+	}
+	data, err := genOtpAndSendOtp(c, email, newUser.Id)
+	if err != nil {
+		return c.Status(400).JSON(err.Error())
+	}
+	return c.Status(200).JSON(data)
+}
+
+// genOtpAndSendOtp generates otp and sends it to the user
+func genOtpAndSendOtp(c *fiber.Ctx, email string, id primitive.ObjectID) (interface{}, error) {
+	var otp models.Otp
+	otp_number := services.GenerateOtp()
+	subject := "OTP for login into your account"
+	body := "Your OTP is " + strconv.Itoa(otp_number)
+	otp = models.Otp{
+		Id:   primitive.NewObjectID(),
+		Otp:  otp_number,
+		User: id,
+	}
+	_, err := otpCollection.InsertOne(c.Context(), otp)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		err := services.SendEmail(email, subject, body)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	response := map[string]interface{}{
+		"success": true,
+		"message": "OTP sent to your email",
+	}
+	return response, nil
 }

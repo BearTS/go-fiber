@@ -27,7 +27,7 @@ func main() {
 	// use middleware
 	middleware.FiberMiddleware(app)
 
-	database.PostgreSQLConnection()
+	database.MongoConnectDB()
 
 	// add routes
 	routes.UserRoute(app)

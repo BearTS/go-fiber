@@ -1,16 +1,10 @@
 package models
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "go.mongodb.org/mongo-driver/bson/primitive"
 
 // User model.
 type User struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
-	Email     string    `gorm:"type:varchar(100);unique_index;not null"`
-	Password  string    `gorm:"type:varchar(100);not null"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Id       primitive.ObjectID `json:"id,omitempty"`
+	Email    string             `json:"email,omitempty" validate:"required,email"`
+	Password string             `json:"password,omitempty" validate:"required,min=6"`
 }

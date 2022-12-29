@@ -8,7 +8,7 @@ import (
 func CreateJWTTokenUser(user models.User) (string, error) {
 
 	claims := jwt.MapClaims{
-		"id":    user.ID,
+		"id":    user.Id,
 		"email": user.Email,
 		"role":  "user",
 	}

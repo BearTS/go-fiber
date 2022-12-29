@@ -7,9 +7,7 @@ import (
 )
 
 func UserRoute(app *fiber.App) {
-	app.Post("/user", controllers.SignUp)
-	app.Post("/user/login", controllers.Login)
 	app.Post("/user/otp", controllers.SendOtp)
-	app.Get("/user", middleware.UserOnly, controllers.GetUsers)
+	app.Post("/user/otp/verify", controllers.VerifyOtp)
 	app.Get("/user/current", middleware.UserOnly, controllers.CurrentUser)
 }

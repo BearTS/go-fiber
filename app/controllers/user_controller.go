@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var userCollection *mongo.Collection = database.GetCollection(database.DB, "users")
@@ -21,9 +20,8 @@ var otpCollection *mongo.Collection = database.GetCollection(database.DB, "otp")
 var validate = validator.New()
 
 type User struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
-	Password string `json:"password"` // this is not returned to the user
+	ID    string `json:"id"`
+	Email string `json:"email"`
 }
 
 func CreateResponseUser(user models.User) User {
@@ -31,50 +29,6 @@ func CreateResponseUser(user models.User) User {
 		ID:    user.Id.String(),
 		Email: user.Email,
 	}
-}
-
-func SignUp(c *fiber.Ctx) error {
-	var user models.User
-
-	if err := c.BodyParser(&user); err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	email := user.Email
-	password := user.Password
-	// password is byte array
-	if email == "" {
-		return c.Status(400).JSON("Email is required")
-	}
-	if len(password) < 6 {
-		return c.Status(400).JSON("Password must be atleast 6 characters")
-	}
-
-	// check if email already exists
-	var existingUser models.User
-	userCollection.FindOne(c.Context(), bson.M{"email": email}).Decode(&existingUser)
-	if existingUser.Email != "" {
-		return c.Status(400).JSON("Email already exists")
-	}
-	fmt.Println("user", existingUser)
-	if validationErr := validate.Struct(&user); validationErr != nil {
-		return c.Status(400).JSON(validationErr.Error())
-	}
-
-	bs, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	newUser := models.User{
-		Id:       primitive.NewObjectID(),
-		Email:    user.Email,
-		Password: string(bs),
-	}
-	_, err = userCollection.InsertOne(c.Context(), newUser)
-	if err != nil {
-		return c.Status(400).JSON(err.Error())
-	}
-	response := CreateResponseUser(newUser)
-	return c.Status(200).JSON(response)
 }
 
 func GetUsers(c *fiber.Ctx) error {
@@ -107,44 +61,60 @@ func CurrentUser(c *fiber.Ctx) error {
 	return c.Status(200).JSON(response)
 }
 
-func Login(c *fiber.Ctx) error {
+type verifyBody struct {
+	Email string `json:"email"`
+	Otp   int    `json:"otp"`
+}
 
-	var user models.User
-
-	if err := c.BodyParser(&user); err != nil {
+func VerifyOtp(c *fiber.Ctx) error {
+	var body verifyBody
+	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
-	email := user.Email
-	password := user.Password
+	email := body.Email
+	otp := body.Otp
 	if email == "" {
 		return c.Status(400).JSON("Email is required")
 	}
-	if len(password) < 6 {
-		return c.Status(400).JSON("Password must be atleast 6 characters")
+	if len(strconv.Itoa(otp)) != 4 {
+		return c.Status(400).JSON("Otp is required")
 	}
-	err := userCollection.FindOne(c.Context(), models.User{Email: email}).Decode(&user)
+	// check if email already exists
+	var existingUser models.User
+	err := userCollection.FindOne(c.Context(), bson.M{"email": email}).Decode(&existingUser)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "User not found",
+		})
+	}
+	var otpModel models.Otp
+	// find in db where user.id and otp match
+	err = otpCollection.FindOne(c.Context(), bson.M{"user": existingUser.Id, "otp": otp}).Decode(&otpModel)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "Otp is invalid",
+		})
+	}
+	// delete otp from db
+	_, err = otpCollection.DeleteOne(c.Context(), bson.M{"user": existingUser.Id, "otp": otp})
 	if err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		// password is incorrect, throw error
-		// you can write the error message to the response writer
-		return c.Status(400).JSON("Invalid credentials")
-	}
-	token, err := services.CreateJWTTokenUser(user)
+	// generate jwt token
+	token, err := services.CreateJWTTokenUser(existingUser)
 	if err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
-	response := map[string]interface{}{
+	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"token":   token,
-	}
-	return c.Status(200).JSON(response)
+	})
 }
 
 func SendOtp(c *fiber.Ctx) error {
-	var user models.User
+	var user verifyBody
 	if err := c.BodyParser(&user); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
@@ -188,6 +158,8 @@ func genOtpAndSendOtp(c *fiber.Ctx, email string, id primitive.ObjectID) (interf
 	otp_number := services.GenerateOtp()
 	subject := "OTP for login into your account"
 	body := "Your OTP is " + strconv.Itoa(otp_number)
+	// find if otp already exists for the user then delete it
+	otpCollection.FindOneAndDelete(c.Context(), bson.M{"user": id})
 	otp = models.Otp{
 		Id:   primitive.NewObjectID(),
 		Otp:  otp_number,

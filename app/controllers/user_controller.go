@@ -6,6 +6,7 @@ import (
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
 	"github.com/bearts/go-fiber/platform/database"
+	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gofiber/fiber/v2"
@@ -71,6 +72,16 @@ func GetUsers(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(responseUsers)
+}
+
+func CurrentUser(c *fiber.Ctx) error {
+	user := c.Locals("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	email := claims["email"].(string)
+	var currentUser models.User
+	database.Database.Db.Where("email = ?", email).First(&currentUser)
+	responseUser := CreateResponseUser(currentUser)
+	return c.Status(200).JSON(responseUser)
 }
 
 func Login(c *fiber.Ctx) error {

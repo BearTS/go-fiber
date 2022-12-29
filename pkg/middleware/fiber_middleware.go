@@ -13,4 +13,5 @@ func FiberMiddleware(a *fiber.App) {
 		// Add simple logger.
 		logger.New(),
 	)
+	JWTProtected()
 }

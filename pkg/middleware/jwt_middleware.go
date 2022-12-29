@@ -11,9 +11,9 @@ import (
 func JWTProtected() func(*fiber.Ctx) error {
 	// Create config for JWT authentication middleware.
 	config := jwtMiddleware.Config{
-		SigningKey: []byte(os.Getenv("JWT_SECRET_KEY")),
+		SigningKey:   []byte(os.Getenv("JWT_SECRET_KEY")),
+		ErrorHandler: jwtError,
 	}
-
 	return jwtMiddleware.New(config)
 }
 

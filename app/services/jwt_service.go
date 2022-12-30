@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/bearts/go-fiber/app/database"
 	"github.com/bearts/go-fiber/app/models"
-	"github.com/bearts/go-fiber/platform/database"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"

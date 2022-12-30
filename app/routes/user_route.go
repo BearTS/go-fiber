@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/bearts/go-fiber/app/controllers"
-	"github.com/bearts/go-fiber/pkg/middleware"
+	"github.com/bearts/go-fiber/middleware"
 	"github.com/gofiber/fiber/v2"
 )
 

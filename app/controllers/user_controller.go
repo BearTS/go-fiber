@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bearts/go-fiber/app/database"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
-	"github.com/bearts/go-fiber/platform/database"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
@@ -29,6 +29,10 @@ type verifyOtp_Body struct {
 	Otp   int    `json:"otp" validate:"required,min=4,number"`
 }
 
+type sendOtp_Body struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 var validate = validator.New()
 
 func VerifyOtp(c *fiber.Ctx) error {
@@ -38,43 +42,72 @@ func VerifyOtp(c *fiber.Ctx) error {
 	}
 	// validate body
 	if err := validate.Struct(body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": "Validation error", "message": err.Error()})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Validation error",
+			"message": err.Error(),
+		})
 	}
 	// check if email already exists
 	var existingUser models.User
 	if err := userCollection.FindOne(c.Context(), bson.M{"email": body.Email}).Decode(&existingUser); err != nil {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": "User not found"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "User not found",
+		})
 	}
 
 	var otpModel models.Otp
 	// check about expiry time
 	if err := otpCollection.FindOne(c.Context(), bson.M{"user": existingUser.Id, "otp": body.Otp}).Decode(&otpModel); err != nil {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": "Otp is invalid"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Otp is invalid",
+		})
 	}
 	// check if otp is expired; expiresAt is a UnixMilli timestamp
 	if otpModel.ExpiresAt < time.Now().UnixMilli() {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": "Otp is expired"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Otp is expired",
+		})
 	}
 	// delete otp from db
 	if _, err := otpCollection.DeleteOne(c.Context(), bson.M{"user": existingUser.Id, "otp": body.Otp}); err != nil {
-		return c.Status(500).JSON(fiber.Map{"success": false, "error": "Internal server error"})
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+		})
 	}
 	// generate jwt token
 	token, err := services.CreateJWTTokenUser(existingUser)
 	if err != nil {
 		fmt.Println(err)
-		return c.Status(500).JSON(fiber.Map{"success": false, "error": "Internal server error"})
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+		})
 	}
-	return c.Status(200).JSON(fiber.Map{"success": true, "token": token})
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"token":   token,
+	})
 }
 
 func SendOtp(c *fiber.Ctx) error {
-	var body verifyOtp_Body
+	var body sendOtp_Body
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": err.Error()})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   err.Error(),
+		})
 	}
-	if body.Email == "" {
-		return c.Status(400).JSON(fiber.Map{"success": false, "error": "Email is required"})
+	if err := validate.Struct(body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Validation error",
+			"message": err.Error(),
+		})
 	}
 	// check if email already exists
 	var existingUser models.User
@@ -82,7 +115,10 @@ func SendOtp(c *fiber.Ctx) error {
 	if existingUser.Email != "" {
 		data, err := genOtpAndSendOtp(c, body.Email, existingUser.Id)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"success": false, "error": err.Error()})
+			return c.Status(400).JSON(fiber.Map{
+				"success": false,
+				"error":   err.Error(),
+			})
 		}
 		return c.Status(200).JSON(data)
 	}
@@ -92,11 +128,19 @@ func SendOtp(c *fiber.Ctx) error {
 		Email: body.Email,
 	}
 	if _, err := userCollection.InsertOne(c.Context(), newUser); err != nil {
-		return c.Status(400).JSON(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Internal server error",
+			"error":   err.Error(),
+		})
 	}
 	data, err := genOtpAndSendOtp(c, body.Email, newUser.Id)
 	if err != nil {
-		return c.Status(400).JSON(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Internal server error",
+			"error":   err.Error(),
+		})
 	}
 	return c.Status(200).JSON(data)
 }
@@ -107,9 +151,15 @@ func CurrentUser(c *fiber.Ctx) error {
 	email := claims["email"].(string)
 	var currentUser models.User
 	if err := userCollection.FindOne(c.Context(), models.User{Email: email}).Decode(&currentUser); err != nil {
-		return c.Status(400).JSON(fiber.Map{"success": false, "message": "User not found"})
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "User not found",
+		})
 	}
-	return c.Status(200).JSON(fiber.Map{"success": true, "user": currentUser})
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"user":    currentUser,
+	})
 }
 
 // genOtpAndSendOtp generates otp and sends it to the user

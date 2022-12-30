@@ -2,12 +2,14 @@ package main
 
 import (
 	"log"
+	"os"
+	"strconv"
+	"time"
 
+	"github.com/bearts/go-fiber/app/database"
 	"github.com/bearts/go-fiber/app/routes"
-	"github.com/bearts/go-fiber/pkg/configs"
-	"github.com/bearts/go-fiber/pkg/middleware"
-	"github.com/bearts/go-fiber/pkg/utils"
-	"github.com/bearts/go-fiber/platform/database"
+	"github.com/bearts/go-fiber/middleware"
+	"github.com/bearts/go-fiber/utils"
 
 	"github.com/joho/godotenv"
 
@@ -15,12 +17,16 @@ import (
 )
 
 func main() {
-	// Define Fiber Config
-	config := configs.FiberConfig()
 	err := godotenv.Load(".env")
 
 	if err != nil {
 		log.Fatalf("Some error occured. Err: %s", err)
+	}
+	// Define Fiber Config
+	readTimeoutSecondsCount, _ := strconv.Atoi(os.Getenv("SERVER_READ_TIMEOUT"))
+	config := fiber.Config{
+		ReadTimeout: time.Second * time.Duration(readTimeoutSecondsCount),
+		AppName:     "Tez Backend",
 	}
 	// Define new app with Fiber config
 	app := fiber.New(config)

@@ -2,10 +2,12 @@ package services
 
 import (
 	"github.com/bearts/go-fiber/app/dao"
+	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/structs"
 	"github.com/bearts/go-fiber/app/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateOrder(c *fiber.Ctx) error {
@@ -32,8 +34,47 @@ func CreateOrder(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+	price, err := dao.GetPriceFromTo("main_gate", body.Location)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	locationObj, err := dao.GetPlaceByCode(body.Location)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	// convert id to object id
+	userid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	// create order object
+	var order models.Order
+	order.Delivery_app.NameOfApp = body.NameOfApp
+	order.Delivery_app.NameOfRes = body.NameOfRestaurant
+	order.Delivery_app.EstimatedTime = body.EstimatedTime
+	order.Delivery_app.DeliveryPhone = body.DeliveryPhone
+	order.Location = locationObj.Id
+	if body.Otp > 0 {
+		order.Delivery_app.Otp = body.Otp
+	}
+	order.Price = price
+	order.Status = "pending"
+	order.User = userid
 
-	Order, err := dao.CreateOrder(id, body.NameOfApp, body.NameOfRestaurant, body.EstimatedTime, body.DeliveryPhone, body.Location, body.Otp)
+	// create order to database
+	Order, err := dao.CreateOrder(&order)
 
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{

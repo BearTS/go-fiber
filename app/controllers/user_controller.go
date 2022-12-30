@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/bearts/go-fiber/app/database"
+	"github.com/bearts/go-fiber/app/interfaces"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,29 +19,13 @@ import (
 var userCollection *mongo.Collection = database.GetCollection(database.DB, "users")
 var otpCollection *mongo.Collection = database.GetCollection(database.DB, "otp")
 
-type User struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-}
-
-type verifyOtp_Body struct {
-	Email string `json:"email" validate:"required,email"`
-	Otp   int    `json:"otp" validate:"required,min=4,number"`
-}
-
-type sendOtp_Body struct {
-	Email string `json:"email" validate:"required,email"`
-}
-
-var validate = validator.New()
-
 func VerifyOtp(c *fiber.Ctx) error {
-	var body verifyOtp_Body
+	var body interfaces.Body_VerifyOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
 	// validate body
-	if err := validate.Struct(body); err != nil {
+	if err := services.Validate.Struct(body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "Validation error",
@@ -95,14 +79,14 @@ func VerifyOtp(c *fiber.Ctx) error {
 }
 
 func SendOtp(c *fiber.Ctx) error {
-	var body sendOtp_Body
+	var body interfaces.Body_SendOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
-	if err := validate.Struct(body); err != nil {
+	if err := services.Validate.Struct(body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "Validation error",

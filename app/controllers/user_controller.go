@@ -5,19 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bearts/go-fiber/app/database"
+	"github.com/bearts/go-fiber/app/dao"
 	"github.com/bearts/go-fiber/app/interfaces"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/services"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
-
-var userCollection *mongo.Collection = database.GetCollection(database.DB, "users")
-var otpCollection *mongo.Collection = database.GetCollection(database.DB, "otp")
 
 func VerifyOtp(c *fiber.Ctx) error {
 	var body interfaces.Body_VerifyOtp
@@ -33,20 +28,19 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	var existingUser models.User
-	if err := userCollection.FindOne(c.Context(), bson.M{"email": body.Email}).Decode(&existingUser); err != nil {
+	existingUser, err := dao.FindUserByEmail(body.Email)
+	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "User not found",
 		})
 	}
-
-	var otpModel models.Otp
 	// check about expiry time
-	if err := otpCollection.FindOne(c.Context(), bson.M{"user": existingUser.Id, "otp": body.Otp}).Decode(&otpModel); err != nil {
+	otpModel, err := dao.FindOtpByUser(*existingUser)
+	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
-			"error":   "Otp is invalid",
+			"error":   "Otp not found",
 		})
 	}
 	// check if otp is expired; expiresAt is a UnixMilli timestamp
@@ -57,14 +51,14 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// delete otp from db
-	if _, err := otpCollection.DeleteOne(c.Context(), bson.M{"user": existingUser.Id, "otp": body.Otp}); err != nil {
+	if _, err := dao.DeleteOtpByUser(*existingUser); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Internal server error",
 		})
 	}
 	// generate jwt token
-	token, err := services.CreateJWTTokenUser(existingUser)
+	token, err := services.CreateJWTTokenUser(*existingUser)
 	if err != nil {
 		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{
@@ -94,10 +88,12 @@ func SendOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	var existingUser models.User
-	userCollection.FindOne(c.Context(), bson.M{"email": body.Email}).Decode(&existingUser)
+	existingUser, err := dao.FindUserByEmail(body.Email)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
 	if existingUser.Email != "" {
-		data, err := genOtpAndSendOtp(c, body.Email, existingUser.Id)
+		data, err := genOtpAndSendOtp(c, body.Email, *existingUser)
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
 				"success": false,
@@ -111,14 +107,13 @@ func SendOtp(c *fiber.Ctx) error {
 		Id:    primitive.NewObjectID(),
 		Email: body.Email,
 	}
-	if _, err := userCollection.InsertOne(c.Context(), newUser); err != nil {
+	if _, err := dao.CreateUser(newUser); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
-			"message": "Internal server error",
-			"error":   err.Error(),
+			"error":   "Internal server error",
 		})
 	}
-	data, err := genOtpAndSendOtp(c, body.Email, newUser.Id)
+	data, err := genOtpAndSendOtp(c, body.Email, newUser)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -133,11 +128,11 @@ func CurrentUser(c *fiber.Ctx) error {
 	user := c.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	email := claims["email"].(string)
-	var currentUser models.User
-	if err := userCollection.FindOne(c.Context(), models.User{Email: email}).Decode(&currentUser); err != nil {
+	currentUser, err := dao.FindUserByEmail(email)
+	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
-			"message": "User not found",
+			"error":   "User not found",
 		})
 	}
 	return c.Status(200).JSON(fiber.Map{
@@ -147,19 +142,21 @@ func CurrentUser(c *fiber.Ctx) error {
 }
 
 // genOtpAndSendOtp generates otp and sends it to the user
-func genOtpAndSendOtp(c *fiber.Ctx, email string, id primitive.ObjectID) (interface{}, error) {
+func genOtpAndSendOtp(c *fiber.Ctx, email string, user models.User) (interface{}, error) {
 	var otp models.Otp
 	otp_number := services.GenerateOtp()
 	// find if otp already exists for the user then delete it
-	otpCollection.FindOneAndDelete(c.Context(), bson.M{"user": id})
+	if _, err := dao.DeleteOtpByUser(user); err != nil {
+		return nil, err
+	}
 	otp = models.Otp{
 		Id:        primitive.NewObjectID(),
 		Otp:       otp_number,
-		User:      id,
+		User:      user.Id,
 		ExpiresAt: time.Now().Add(time.Minute * 5).UnixMilli(),
 	}
 
-	if _, err := otpCollection.InsertOne(c.Context(), otp); err != nil {
+	if _, err := dao.CreateOtp(otp); err != nil {
 		return nil, err
 	}
 	subject := "OTP for login into your account"

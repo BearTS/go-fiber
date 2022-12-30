@@ -7,6 +7,6 @@ import (
 
 func UserRoutes(app *fiber.App) {
 	user := app.Group("/v1/user")
-	controllers.UserPanel(user)
+	controllers.UserAuth(user)
 	controllers.UserOrder(user)
 }

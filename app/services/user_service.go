@@ -15,8 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func VerifyOtp(c *fiber.Ctx) error {
-	var body structs.BodyVerifyOtp
+func UserVerifyOtp(c *fiber.Ctx) error {
+	var body structs.UserVerifyOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
@@ -58,18 +58,18 @@ func VerifyOtp(c *fiber.Ctx) error {
 			"error":   "Internal server error",
 		})
 	}
+	PhoneAvailable := false
+	if existingUser.Phone != "" {
+		PhoneAvailable = true
+	}
 	// generate jwt token
-	token, err := utils.CreateJWTTokenUser(*existingUser)
+	token, err := utils.CreateJWTTokenUser(*existingUser, PhoneAvailable)
 	if err != nil {
 		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Internal server error",
 		})
-	}
-	PhoneAvailable := false
-	if *existingUser.Phone != "" {
-		PhoneAvailable = true
 	}
 	return c.Status(200).JSON(fiber.Map{
 		"success":        true,
@@ -78,8 +78,8 @@ func VerifyOtp(c *fiber.Ctx) error {
 	})
 }
 
-func SendOtp(c *fiber.Ctx) error {
-	var body structs.BodySendOtp
+func UserSendOtp(c *fiber.Ctx) error {
+	var body structs.UserSendOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -113,6 +113,7 @@ func SendOtp(c *fiber.Ctx) error {
 	newUser := models.User{
 		Id:    primitive.NewObjectID(),
 		Email: body.Email,
+		Phone: "",
 	}
 	if _, err := dao.CreateUser(newUser); err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -131,7 +132,7 @@ func SendOtp(c *fiber.Ctx) error {
 	return c.Status(200).JSON(data)
 }
 
-func CurrentUser(c *fiber.Ctx) error {
+func UserCurrent(c *fiber.Ctx) error {
 	user := c.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	email := claims["email"].(string)
@@ -148,8 +149,8 @@ func CurrentUser(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateUser(c *fiber.Ctx) error {
-	var body structs.BodyUpdateUser
+func UserUpdate(c *fiber.Ctx) error {
+	var body structs.UserUpdateUser
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -161,13 +162,6 @@ func UpdateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error":   "Validation error",
 			"message": err.Error(),
-		})
-	}
-	re := regexp.MustCompile(`^[0-9]{2}[A-Za-z]{3}[0-9]{4}$`)
-	if !re.MatchString(body.RegistrationNumber) {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"error":   "Invalid registration number",
 		})
 	}
 	currentuser := c.Locals("user").(*jwt.Token)
@@ -188,10 +182,17 @@ func UpdateUser(c *fiber.Ctx) error {
 		})
 	}
 	if body.RegistrationNumber != "" {
+		re := regexp.MustCompile(`^[0-9]{2}[A-Za-z]{3}[0-9]{4}$`)
+		if !re.MatchString(body.RegistrationNumber) {
+			return c.Status(400).JSON(fiber.Map{
+				"success": false,
+				"error":   "Invalid registration number",
+			})
+		}
 		user.RegistrationNumber = &body.RegistrationNumber
 	}
 	if body.Phone != "" {
-		user.Phone = &body.Phone
+		user.Phone = body.Phone
 	}
 	if body.Name != "" {
 		user.Name = body.Name

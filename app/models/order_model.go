@@ -20,6 +20,7 @@ type Order struct {
 	Location  primitive.ObjectID  `bson:"location,omitempty" json:"location,omitempty"`
 	Status    string              `bson:"status,omitempty" json:"status,omitempty"`
 	Price     int                 `bson:"price,omitempty" json:"price,omitempty"`
+	RunnerOtp int                 `bson:"runner_otp,omitempty" json:"runner_otp,omitempty"`
 	Runner    *primitive.ObjectID `bson:"runner,omitempty" json:"runner,omitempty"`
 	CreatedAt time.Time           `bson:"created_at,omitempty" json:"created_at,omitempty"`
 	UpdatedAt time.Time           `bson:"updated_at,omitempty" json:"updated_at,omitempty"`

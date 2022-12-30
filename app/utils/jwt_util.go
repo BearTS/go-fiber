@@ -24,11 +24,7 @@ type Token struct {
 
 var RefreshTokenCollection *mongo.Collection = database.GetCollection(database.DB, "RefreshToken")
 
-func CreateJWTTokenUser(user models.User) (*Token, error) {
-	PhoneAvailable := false
-	if *user.Phone != "" {
-		PhoneAvailable = true
-	}
+func CreateJWTTokenUser(user models.User, PhoneAvailable bool) (*Token, error) {
 	claims := jwt.MapClaims{
 		"id":             user.Id,
 		"email":          user.Email,
@@ -70,4 +66,46 @@ func CreateJWTTokenUser(user models.User) (*Token, error) {
 		},
 	}, nil
 
+}
+
+func CreateJWTTokenRunner(runner models.Runner) (*Token, error) {
+	claims := jwt.MapClaims{
+		"id":    runner.Id,
+		"email": runner.Email,
+		"role":  "runner",
+		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	accessToken, err := token.SignedString([]byte("secret"))
+	accessTokenExpiresAt := time.Now().Add(time.Hour * 24).Unix()
+	if err != nil {
+		return nil, err
+	}
+	refreshToken := uuid.New().String()
+	expiresAt := time.Now().Add(time.Hour * 24 * 3).Unix()
+	obj := models.RefreshToken{
+		Token:     refreshToken,
+		ExpiresAt: expiresAt,
+		User:      runner.Id,
+	}
+	if _, err := RefreshTokenCollection.InsertOne(context.Background(), obj); err != nil {
+		return nil, err
+	}
+	return &Token{
+		AccessToken: struct {
+			Token     string `json:"token"`
+			ExpiresAt int64  `json:"expiresAt"`
+		}{
+			Token:     accessToken,
+			ExpiresAt: accessTokenExpiresAt,
+		},
+		RefreshToken: struct {
+			Token     string `json:"token"`
+			ExpiresAt int64  `json:"expiresAt"`
+		}{
+			Token:     refreshToken,
+			ExpiresAt: expiresAt,
+		},
+	}, nil
 }

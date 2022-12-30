@@ -7,7 +7,7 @@ import (
 )
 
 func UserOrder(app fiber.Router) {
-	app.Post("/order", middleware.UserOnly, services.CreateOrder)
-	app.Get("/order", middleware.UserOnly, services.GetAllOrdersByUser)
-
+	app.Post("/order", middleware.UserOnly, services.UserCreateOrder)
+	app.Get("/order", middleware.UserOnly, services.UserGetAllOrdersByUser)
+	app.Get("/order/:id", middleware.UserOnly, services.UserGetOrderById)
 }

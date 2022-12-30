@@ -36,6 +36,7 @@ func main() {
 
 	// add routes
 	routes.UserRoutes(app)
+	routes.RunnerRoutes(app)
 
 	if err := app.Listen(":" + os.Getenv("SERVER_PORT")); err != nil {
 		log.Fatalf("Some error occured. Err: %s", err)

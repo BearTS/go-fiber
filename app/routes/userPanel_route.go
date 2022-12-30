@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func UserRoute(app *fiber.App) {
+func UserPanel(app *fiber.App) {
 	app.Post("/user/otp", controllers.SendOtp)
 	app.Post("/user/otp/verify", controllers.VerifyOtp)
 	app.Get("/user/current", middleware.UserOnly, controllers.CurrentUser)

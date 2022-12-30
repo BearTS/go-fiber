@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var userCollection *mongo.Collection = database.GetCollection(database.DB, "users")
+var userCollection *mongo.Collection = database.GetCollection(database.DB, "User")
 
 func CreateUser(user models.User) (*mongo.InsertOneResult, error) {
 	return userCollection.InsertOne(context.Background(), user)

@@ -36,7 +36,8 @@ func main() {
 	database.MongoConnectDB()
 
 	// add routes
-	routes.UserRoute(app)
+	routes.UserPanel(app)
+	routes.UserOrder(app)
 
 	utils.StartServer(app)
 }

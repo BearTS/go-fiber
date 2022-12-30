@@ -25,11 +25,16 @@ type Token struct {
 var RefreshTokenCollection *mongo.Collection = database.GetCollection(database.DB, "RefreshToken")
 
 func CreateJWTTokenUser(user models.User) (*Token, error) {
+	PhoneAvailable := false
+	if user.Phone != "" {
+		PhoneAvailable = true
+	}
 	claims := jwt.MapClaims{
-		"id":    user.Id,
-		"email": user.Email,
-		"role":  "user",
-		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+		"id":             user.Id,
+		"email":          user.Email,
+		"role":           "user",
+		"PhoneAvailable": PhoneAvailable,
+		"exp":            time.Now().Add(time.Hour * 24).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

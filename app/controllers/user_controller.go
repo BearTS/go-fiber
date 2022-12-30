@@ -92,7 +92,8 @@ func SendOtp(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
-	if existingUser.Email != "" {
+	fmt.Println("Existing user: ", existingUser)
+	if existingUser != nil {
 		data, err := genOtpAndSendOtp(c, body.Email, *existingUser)
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{

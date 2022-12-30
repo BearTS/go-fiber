@@ -6,6 +6,8 @@ import (
 
 	"github.com/bearts/go-fiber/app/database"
 	"github.com/bearts/go-fiber/app/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -28,4 +30,38 @@ func CreateOrder(order *models.Order) (*mongo.InsertOneResult, error) {
 		return nil, err
 	}
 	return orderObj, nil
+}
+
+func GetAllOrdersOfUser(id primitive.ObjectID, status string) ([]models.Order, error) {
+	var orders []models.Order
+	// status is optional
+	if status != "" {
+		cursor, err := orderCollection.Find(context.Background(), bson.M{"user": id, "status": status})
+		if err != nil {
+			return nil, err
+		}
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			var order models.Order
+			if err := cursor.Decode(&order); err != nil {
+				return nil, err
+			}
+			orders = append(orders, order)
+		}
+
+	} else {
+		cursor, err := orderCollection.Find(context.Background(), bson.M{"user": id})
+		if err != nil {
+			return nil, err
+		}
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			var order models.Order
+			if err := cursor.Decode(&order); err != nil {
+				return nil, err
+			}
+			orders = append(orders, order)
+		}
+	}
+	return orders, nil
 }

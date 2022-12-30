@@ -26,7 +26,7 @@ var RefreshTokenCollection *mongo.Collection = database.GetCollection(database.D
 
 func CreateJWTTokenUser(user models.User) (*Token, error) {
 	PhoneAvailable := false
-	if user.Phone != "" {
+	if *user.Phone != "" {
 		PhoneAvailable = true
 	}
 	claims := jwt.MapClaims{

@@ -17,3 +17,14 @@ type BodyCreateOrder struct {
 	Location         string `json:"location" validate:"required"`
 	Otp              int    `json:"otp" validate:"required,number"`
 }
+
+type BodyUpdateUser struct {
+	RegistrationNumber string `json:"registrationNumber"`
+	Phone              string `json:"phone"`
+	Name               string `json:"name"`
+	DefaultAddress     string `json:"defaultAddress"`
+}
+
+type ParamsGetAllOrders struct {
+	status string `query:"status"`
+}

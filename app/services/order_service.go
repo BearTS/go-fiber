@@ -89,3 +89,30 @@ func CreateOrder(c *fiber.Ctx) error {
 		"order":   Order,
 	})
 }
+
+func GetAllOrdersByUser(c *fiber.Ctx) error {
+	user := c.Locals("user").(*jwt.Token)
+	id := user.Claims.(jwt.MapClaims)["id"].(string)
+	status := c.Query("status")
+	// convert id to object id
+	userid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	orders, err := dao.GetAllOrdersOfUser(userid, status)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"orders":  orders,
+	})
+}

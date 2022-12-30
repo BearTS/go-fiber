@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -28,7 +29,7 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	existingUser, err := dao.FindUserByEmail(body.Email)
+	existingUser, err := dao.GetUserByEmail(body.Email)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -67,7 +68,7 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	PhoneAvailable := false
-	if existingUser.Phone != "" {
+	if *existingUser.Phone != "" {
 		PhoneAvailable = true
 	}
 	return c.Status(200).JSON(fiber.Map{
@@ -93,7 +94,7 @@ func SendOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	existingUser, err := dao.FindUserByEmail(body.Email)
+	existingUser, err := dao.GetUserByEmail(body.Email)
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
@@ -134,7 +135,7 @@ func CurrentUser(c *fiber.Ctx) error {
 	user := c.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	email := claims["email"].(string)
-	currentUser, err := dao.FindUserByEmail(email)
+	currentUser, err := dao.GetUserByEmail(email)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -144,6 +145,77 @@ func CurrentUser(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"user":    currentUser,
+	})
+}
+
+func UpdateUser(c *fiber.Ctx) error {
+	var body structs.BodyUpdateUser
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   err.Error(),
+		})
+	}
+	if err := utils.Validate.Struct(body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Validation error",
+			"message": err.Error(),
+		})
+	}
+	re := regexp.MustCompile(`^[0-9]{2}[A-Za-z]{3}[0-9]{4}$`)
+	if !re.MatchString(body.RegistrationNumber) {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid registration number",
+		})
+	}
+	currentuser := c.Locals("user").(*jwt.Token)
+	claims := currentuser.Claims.(jwt.MapClaims)
+	id := claims["id"].(string)
+	userId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid user id",
+		})
+	}
+	user, err := dao.GetUserById(userId)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "User not found",
+		})
+	}
+	if body.RegistrationNumber != "" {
+		user.RegistrationNumber = &body.RegistrationNumber
+	}
+	if body.Phone != "" {
+		user.Phone = &body.Phone
+	}
+	if body.Name != "" {
+		user.Name = body.Name
+	}
+	if body.DefaultAddress != "" {
+		location, err := dao.GetPlaceByCode(body.DefaultAddress)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"success": false,
+				"error":   "Invalid location",
+			})
+		}
+		user.DefaultAddress = &location.Id
+	}
+	if _, err = dao.UpdateUser(*user); err != nil {
+		fmt.Println("Error: ", err)
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+		})
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"user":    user,
 	})
 }
 

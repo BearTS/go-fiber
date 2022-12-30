@@ -1,15 +1,15 @@
-package controllers
+package services
 
 import (
 	"github.com/bearts/go-fiber/app/dao"
-	"github.com/bearts/go-fiber/app/interfaces"
-	"github.com/bearts/go-fiber/app/services"
+	"github.com/bearts/go-fiber/app/structs"
+	"github.com/bearts/go-fiber/app/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 )
 
 func CreateOrder(c *fiber.Ctx) error {
-	var body interfaces.BodyCreateOrder
+	var body structs.BodyCreateOrder
 	user := c.Locals("user").(*jwt.Token)
 	id := user.Claims.(jwt.MapClaims)["id"].(string)
 	claims := user.Claims.(jwt.MapClaims)
@@ -25,7 +25,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		return c.Status(400).JSON(err.Error())
 	}
 	// validate body
-	if err := services.Validate.Struct(body); err != nil {
+	if err := utils.Validate.Struct(body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "Validation error",

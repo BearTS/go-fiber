@@ -1,4 +1,4 @@
-package controllers
+package services
 
 import (
 	"fmt"
@@ -6,21 +6,21 @@ import (
 	"time"
 
 	"github.com/bearts/go-fiber/app/dao"
-	"github.com/bearts/go-fiber/app/interfaces"
 	"github.com/bearts/go-fiber/app/models"
-	"github.com/bearts/go-fiber/app/services"
+	"github.com/bearts/go-fiber/app/structs"
+	"github.com/bearts/go-fiber/app/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func VerifyOtp(c *fiber.Ctx) error {
-	var body interfaces.BodyVerifyOtp
+	var body structs.BodyVerifyOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
 	// validate body
-	if err := services.Validate.Struct(body); err != nil {
+	if err := utils.Validate.Struct(body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "Validation error",
@@ -58,7 +58,7 @@ func VerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// generate jwt token
-	token, err := services.CreateJWTTokenUser(*existingUser)
+	token, err := utils.CreateJWTTokenUser(*existingUser)
 	if err != nil {
 		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{
@@ -66,21 +66,26 @@ func VerifyOtp(c *fiber.Ctx) error {
 			"error":   "Internal server error",
 		})
 	}
+	PhoneAvailable := false
+	if existingUser.Phone != "" {
+		PhoneAvailable = true
+	}
 	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"token":   token,
+		"success":        true,
+		"token":          token,
+		"PhoneAvailable": PhoneAvailable,
 	})
 }
 
 func SendOtp(c *fiber.Ctx) error {
-	var body interfaces.BodySendOtp
+	var body structs.BodySendOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
-	if err := services.Validate.Struct(body); err != nil {
+	if err := utils.Validate.Struct(body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"error":   "Validation error",
@@ -145,7 +150,7 @@ func CurrentUser(c *fiber.Ctx) error {
 // genOtpAndSendOtp generates otp and sends it to the user
 func genOtpAndSendOtp(c *fiber.Ctx, email string, user models.User) (interface{}, error) {
 	var otp models.Otp
-	otp_number := services.GenerateOtp()
+	otp_number := utils.GenerateOtp()
 	// find if otp already exists for the user then delete it
 	if _, err := dao.DeleteOtpByUser(user); err != nil {
 		return nil, err
@@ -163,7 +168,7 @@ func genOtpAndSendOtp(c *fiber.Ctx, email string, user models.User) (interface{}
 	subject := "OTP for login into your account"
 	body := "Your OTP is " + strconv.Itoa(otp_number)
 	go func() {
-		if err := services.SendEmail(email, subject, body); err != nil {
+		if err := utils.SendEmail(email, subject, body); err != nil {
 			fmt.Println(err)
 		}
 	}()

@@ -9,7 +9,6 @@ import (
 	"github.com/bearts/go-fiber/app/database"
 	"github.com/bearts/go-fiber/app/routes"
 	"github.com/bearts/go-fiber/middleware"
-	"github.com/bearts/go-fiber/utils"
 
 	"github.com/joho/godotenv"
 
@@ -36,8 +35,10 @@ func main() {
 	database.MongoConnectDB()
 
 	// add routes
-	routes.UserPanel(app)
-	routes.UserOrder(app)
+	routes.UserRoutes(app)
 
-	utils.StartServer(app)
+	if err := app.Listen(":" + os.Getenv("SERVER_PORT")); err != nil {
+		log.Fatalf("Some error occured. Err: %s", err)
+	}
+
 }

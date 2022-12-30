@@ -1,4 +1,4 @@
-package interfaces
+package structs
 
 type BodyVerifyOtp struct {
 	Email string `json:"email" validate:"required,email"`

@@ -1,15 +1,15 @@
 package interfaces
 
-type Body_VerifyOtp struct {
+type BodyVerifyOtp struct {
 	Email string `json:"email" validate:"required,email"`
 	Otp   int    `json:"otp" validate:"required,min=4,number"`
 }
 
-type Body_SendOtp struct {
+type BodySendOtp struct {
 	Email string `json:"email" validate:"required,email"`
 }
 
-type Body_CreateOrder struct {
+type BodyCreateOrder struct {
 	NameOfApp        string `json:"nameOfApp" validate:"required"`
 	NameOfRestaurant string `json:"nameOfRestaurant" validate:"required"`
 	EstimatedTime    int    `json:"estimated_time" validate:"required"`

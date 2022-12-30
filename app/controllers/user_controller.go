@@ -15,7 +15,7 @@ import (
 )
 
 func VerifyOtp(c *fiber.Ctx) error {
-	var body interfaces.Body_VerifyOtp
+	var body interfaces.BodyVerifyOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
@@ -73,7 +73,7 @@ func VerifyOtp(c *fiber.Ctx) error {
 }
 
 func SendOtp(c *fiber.Ctx) error {
-	var body interfaces.Body_SendOtp
+	var body interfaces.BodySendOtp
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,

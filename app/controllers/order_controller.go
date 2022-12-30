@@ -9,7 +9,7 @@ import (
 )
 
 func CreateOrder(c *fiber.Ctx) error {
-	var body interfaces.Body_CreateOrder
+	var body interfaces.BodyCreateOrder
 	user := c.Locals("user").(*jwt.Token)
 	id := user.Claims.(jwt.MapClaims)["id"].(string)
 	claims := user.Claims.(jwt.MapClaims)

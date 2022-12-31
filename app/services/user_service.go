@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bearts/go-fiber/app/dao"
+	"github.com/bearts/go-fiber/app/dbFunctions"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/structs"
 	"github.com/bearts/go-fiber/app/utils"
@@ -29,7 +29,7 @@ func UserVerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	existingUser, err := dao.GetUserByEmail(body.Email)
+	existingUser, err := dbFunctions.GetUserByEmail(body.Email)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -37,7 +37,7 @@ func UserVerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check about expiry time
-	otpModel, err := dao.FindOtpByUser(*existingUser)
+	otpModel, err := dbFunctions.FindOtpByUser(*existingUser)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -52,7 +52,7 @@ func UserVerifyOtp(c *fiber.Ctx) error {
 		})
 	}
 	// delete otp from db
-	if _, err := dao.DeleteOtpByUser(*existingUser); err != nil {
+	if _, err := dbFunctions.DeleteOtpByUser(*existingUser); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Internal server error",
@@ -94,7 +94,7 @@ func UserSendOtp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	existingUser, err := dao.GetUserByEmail(body.Email)
+	existingUser, err := dbFunctions.GetUserByEmail(body.Email)
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
@@ -115,7 +115,7 @@ func UserSendOtp(c *fiber.Ctx) error {
 		Email: body.Email,
 		Phone: "",
 	}
-	if _, err := dao.CreateUser(newUser); err != nil {
+	if _, err := dbFunctions.CreateUser(newUser); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
 			"error":   "Internal server error",
@@ -136,7 +136,7 @@ func UserCurrent(c *fiber.Ctx) error {
 	user := c.Locals("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	email := claims["email"].(string)
-	currentUser, err := dao.GetUserByEmail(email)
+	currentUser, err := dbFunctions.GetUserByEmail(email)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -174,7 +174,7 @@ func UserUpdate(c *fiber.Ctx) error {
 			"error":   "Invalid user id",
 		})
 	}
-	user, err := dao.GetUserById(userId)
+	user, err := dbFunctions.GetUserById(userId)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -198,7 +198,7 @@ func UserUpdate(c *fiber.Ctx) error {
 		user.Name = body.Name
 	}
 	if body.DefaultAddress != "" {
-		location, err := dao.GetPlaceByCode(body.DefaultAddress)
+		location, err := dbFunctions.GetPlaceByCode(body.DefaultAddress)
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
 				"success": false,
@@ -207,7 +207,7 @@ func UserUpdate(c *fiber.Ctx) error {
 		}
 		user.DefaultAddress = &location.Id
 	}
-	if _, err = dao.UpdateUser(*user); err != nil {
+	if _, err = dbFunctions.UpdateUser(*user); err != nil {
 		fmt.Println("Error: ", err)
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -225,7 +225,7 @@ func genOtpAndSendOtp(c *fiber.Ctx, email string, user models.User) (interface{}
 	var otp models.Otp
 	otp_number := utils.GenerateOtp()
 	// find if otp already exists for the user then delete it
-	if _, err := dao.DeleteOtpByUser(user); err != nil {
+	if _, err := dbFunctions.DeleteOtpByUser(user); err != nil {
 		return nil, err
 	}
 	otp = models.Otp{
@@ -235,7 +235,7 @@ func genOtpAndSendOtp(c *fiber.Ctx, email string, user models.User) (interface{}
 		ExpiresAt: time.Now().Add(time.Minute * 5).UnixMilli(),
 	}
 
-	if _, err := dao.CreateOtp(otp); err != nil {
+	if _, err := dbFunctions.CreateOtp(otp); err != nil {
 		return nil, err
 	}
 	subject := "OTP for login into your account"

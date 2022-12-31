@@ -59,6 +59,18 @@ type UserCreatePackage struct {
 	} `json:"package" validate:"required"`
 }
 
+type UserUpdatePackageStatus struct {
+	Status string `json:"status" validate:"required,oneof='waiting for delivery' 'pickedup' 'doorstep'"`
+}
+
+type RunnerUpdatePackage struct {
+	Status string `json:"status" validate:"required,oneof='waiting for delivery' 'pickedup' 'doorstep'"`
+}
+
+type RunnerDeliverPackage struct {
+	Otp int `json:"otp" validate:"required"`
+}
+
 // response
 type ResponseUserGetAllOrders struct {
 	models.Order

@@ -12,3 +12,8 @@ type GetAllUnassignedOrders struct {
 	models.Order
 	Location models.Place `json:"location"`
 }
+
+type GetAllUnAssignedPackages struct {
+	models.Package
+	Location models.Place `json:"location"`
+}

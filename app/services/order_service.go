@@ -3,7 +3,7 @@ package services
 import (
 	"time"
 
-	"github.com/bearts/go-fiber/app/dao"
+	"github.com/bearts/go-fiber/app/dbFunctions"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/structs"
 	"github.com/bearts/go-fiber/app/utils"
@@ -36,7 +36,7 @@ func UserCreateOrder(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	price, err := dao.GetPriceFromTo("main_gate", body.Location)
+	price, err := dbFunctions.GetPriceFromTo("main_gate", body.Location)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -44,7 +44,7 @@ func UserCreateOrder(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	locationObj, err := dao.GetPlaceByCode(body.Location)
+	locationObj, err := dbFunctions.GetPlaceByCode(body.Location)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -98,7 +98,7 @@ func UserCreateOrder(c *fiber.Ctx) error {
 	order.RunnerOtp = RunnerOtp
 	order.CreatedAt = now.Format("2006-01-02 15:04:05 -0700 MST")
 	// create order to database
-	inserted, err := dao.CreateOrder(&order)
+	inserted, err := dbFunctions.CreateOrder(&order)
 
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -127,7 +127,7 @@ func UserGetAllOrdersByUser(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	orders, err := dao.GetAllOrdersOfUser(userid, status)
+	orders, err := dbFunctions.GetAllOrdersOfUser(userid, status)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -186,7 +186,7 @@ func UserGetOrderById(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	order, err := dao.GetOrderById(orderid, userid)
+	order, err := dbFunctions.GetOrderById(orderid, userid)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -194,7 +194,7 @@ func UserGetOrderById(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	location, err := dao.GetPlaceById(order.Location)
+	location, err := dbFunctions.GetPlaceById(order.Location)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -213,7 +213,7 @@ func UserGetOrderById(c *fiber.Ctx) error {
 	orderResponse.Location.Name = location.Name
 	orderResponse.User = ""
 	if order.Runner != nil {
-		runner, err := dao.GetRunnerById(*order.Runner)
+		runner, err := dbFunctions.GetRunnerById(*order.Runner)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"success": false,
@@ -266,7 +266,7 @@ func RunnerAssignOrderById(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	order, err := dao.AssignOrderById(orderid, runnerid)
+	order, err := dbFunctions.AssignOrderById(orderid, runnerid)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -324,7 +324,7 @@ func RunnerDeliverOrder(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	orderObj, err := dao.GetOrderById(orderid, primitive.NilObjectID)
+	orderObj, err := dbFunctions.GetOrderById(orderid, primitive.NilObjectID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -338,7 +338,7 @@ func RunnerDeliverOrder(c *fiber.Ctx) error {
 			"message": "Invalid OTP",
 		})
 	}
-	order, err := dao.UpdateOrderStatus(orderid, runnerid, "delivered")
+	order, err := dbFunctions.UpdateOrderStatus(orderid, runnerid, "delivered")
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -396,7 +396,7 @@ func RunnerChangeOrderStatus(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	order, err := dao.UpdateOrderStatus(id, runnerid, body.Status)
+	order, err := dbFunctions.UpdateOrderStatus(id, runnerid, body.Status)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -411,7 +411,7 @@ func RunnerChangeOrderStatus(c *fiber.Ctx) error {
 }
 
 func RunnerGetAllUnassignedOrders(c *fiber.Ctx) error {
-	orders, err := dao.GetAllUnassignedOrders()
+	orders, err := dbFunctions.GetAllUnassignedOrders()
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -436,7 +436,7 @@ func RunnerGetAllPreviousOrders(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	orders, err := dao.GetAllPreviousOrders(runnerid)
+	orders, err := dbFunctions.GetAllPreviousOrders(runnerid)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -461,7 +461,7 @@ func RunnerGetAllCurrentOrders(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	orders, err := dao.GetAllCurrentOrders(runnerid)
+	orders, err := dbFunctions.GetAllCurrentOrders(runnerid)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -472,5 +472,53 @@ func RunnerGetAllCurrentOrders(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"orders":  orders,
+	})
+}
+
+func RunnerGetOrderById(c *fiber.Ctx) error {
+	orderid := c.Params("id")
+	runner := c.Locals("runner").(*jwt.Token)
+	_id := runner.Claims.(jwt.MapClaims)["id"].(string)
+	runnerid, err := primitive.ObjectIDFromHex(_id)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	if err := utils.Validate.Var(orderid, "required,len=24"); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Validation error",
+			"message": err.Error(),
+		})
+	}
+	// convert id to object id
+	id, err := primitive.ObjectIDFromHex(orderid)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	order, err := dbFunctions.GetOrderById(id, primitive.NilObjectID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	if order.Runner != &runnerid {
+		return c.Status(401).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"order":   order,
 	})
 }

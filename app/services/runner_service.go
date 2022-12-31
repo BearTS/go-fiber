@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/bearts/go-fiber/app/dao"
+	"github.com/bearts/go-fiber/app/dbFunctions"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/structs"
 	"github.com/bearts/go-fiber/app/utils"
@@ -26,7 +26,7 @@ func RunnerSignUp(c *fiber.Ctx) error {
 		})
 	}
 	// check if email already exists
-	_, err := dao.GetRunnerByEmail(body.Email)
+	_, err := dbFunctions.GetRunnerByEmail(body.Email)
 	if err == nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -49,7 +49,7 @@ func RunnerSignUp(c *fiber.Ctx) error {
 		Phone:    body.Phone,
 	}
 	// save runner
-	runnerobj, err := dao.CreateRunner(runner)
+	runnerobj, err := dbFunctions.CreateRunner(runner)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"success": false,
@@ -88,7 +88,7 @@ func RunnerSignIn(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	runner, err := dao.GetRunnerByEmail(body.Email)
+	runner, err := dbFunctions.GetRunnerByEmail(body.Email)
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,

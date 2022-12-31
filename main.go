@@ -29,6 +29,8 @@ func main() {
 	}
 	// Define new app with Fiber config
 	app := fiber.New(config)
+	now := time.Now()
+	log.Printf("Server started at %s", now.Format("2006-01-02 15:04:05"))
 	// use middleware
 	middleware.FiberMiddleware(app)
 

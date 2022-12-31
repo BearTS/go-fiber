@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -12,7 +10,7 @@ type Order struct {
 	Delivery_app struct {
 		NameOfApp     string `bson:"nameOfApp,omitempty" json:"nameOfApp,omitempty" validate:"required"`               // name of the delivery app
 		NameOfRes     string `bson:"nameOfRestaurant,omitempty" json:"nameOfRestaurant,omitempty" validate:"required"` // name of the restaurant
-		EstimatedTime int    `bson:"estimated_time,omitempty" json:"estimated_time,omitempty"`
+		EstimatedTime string `bson:"estimated_time,omitempty" json:"estimated_time,omitempty"`
 		Otp           int    `bson:"otp,omitempty" json:"otp,omitempty"`
 		DeliveryPhone int    `bson:"delivery_Phone,omitempty" json:"delivery_Phone,omitempty" validate:"required"`
 	} `bson:"delivery_app,omitempty" json:"delivery_app,omitempty"`
@@ -22,8 +20,7 @@ type Order struct {
 	Price     int                 `bson:"price,omitempty" json:"price,omitempty"`
 	RunnerOtp int                 `bson:"runner_otp,omitempty" json:"runner_otp,omitempty"`
 	Runner    *primitive.ObjectID `bson:"runner,omitempty" json:"runner,omitempty"`
-	CreatedAt time.Time           `bson:"created_at,omitempty" json:"created_at,omitempty"`
-	UpdatedAt time.Time           `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
+	CreatedAt string              `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
 }
 
 // Order model.

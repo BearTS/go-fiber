@@ -1,6 +1,8 @@
 package services
 
 import (
+	"time"
+
 	"github.com/bearts/go-fiber/app/dao"
 	"github.com/bearts/go-fiber/app/models"
 	"github.com/bearts/go-fiber/app/structs"
@@ -59,12 +61,32 @@ func UserCreateOrder(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+	now := time.Now()
+	estimatedTime, err := time.Parse("15:04", body.EstimatedTime)
+	if err != nil {
+		// handle error
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	// add the current date and year to the estimated time
+	estimatedTime = time.Date(now.Year(), now.Month(), now.Day(), estimatedTime.Hour(), estimatedTime.Minute(), 0, 0, now.Location())
+	// check if estimated time is in future
+	if estimatedTime.Before(now) {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Estimated time is in past",
+		})
+	}
+
 	RunnerOtp := utils.GenerateOtp()
 	// create order object
 	var order models.Order
 	order.Delivery_app.NameOfApp = body.NameOfApp
 	order.Delivery_app.NameOfRes = body.NameOfRestaurant
-	order.Delivery_app.EstimatedTime = body.EstimatedTime
+	order.Delivery_app.EstimatedTime = estimatedTime.Format("2006-01-02 15:04:05 -0700 MST")
 	order.Delivery_app.DeliveryPhone = body.DeliveryPhone
 	order.Location = locationObj.Id
 	if body.Otp > 0 {
@@ -74,8 +96,9 @@ func UserCreateOrder(c *fiber.Ctx) error {
 	order.Status = "pending"
 	order.User = userid
 	order.RunnerOtp = RunnerOtp
+	order.CreatedAt = now.Format("2006-01-02 15:04:05 -0700 MST")
 	// create order to database
-	Order, err := dao.CreateOrder(&order)
+	inserted, err := dao.CreateOrder(&order)
 
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -87,7 +110,7 @@ func UserCreateOrder(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"message": "Order created",
-		"order":   Order,
+		"id":      inserted.InsertedID,
 	})
 }
 
@@ -112,9 +135,25 @@ func UserGetAllOrdersByUser(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+
+	var ordersResponse []structs.ResponseUserGetAllOrders
+	for i := 0; i < len(orders); i++ {
+		var orderResponse structs.ResponseUserGetAllOrders
+		orderResponse.User = ""
+		orderResponse.Location = ""
+		orderResponse.Id = orders[i].Id
+		orderResponse.Price = orders[i].Price
+		orderResponse.Status = orders[i].Status
+		orderResponse.Delivery_app.NameOfApp = orders[i].Delivery_app.NameOfApp
+		orderResponse.Delivery_app.NameOfRes = orders[i].Delivery_app.NameOfRes
+		orderResponse.CreatedAt = orders[i].CreatedAt
+		ordersResponse = append(ordersResponse, orderResponse)
+	}
+	// use a struct tp create a new object
+
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
-		"orders":  orders,
+		"orders":  ordersResponse,
 	})
 }
 
@@ -155,6 +194,24 @@ func UserGetOrderById(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+	location, err := dao.GetPlaceById(order.Location)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Internal server error",
+			"message": err.Error(),
+		})
+	}
+	var orderResponse structs.ResponseUserGetOrderById
+	// copy all the fields from order to orderResponse
+	orderResponse.Id = order.Id
+	orderResponse.Price = order.Price
+	orderResponse.Status = order.Status
+	orderResponse.Delivery_app.NameOfApp = order.Delivery_app.NameOfApp
+	orderResponse.Delivery_app.NameOfRes = ""
+	orderResponse.CreatedAt = order.CreatedAt
+	orderResponse.Location.Name = location.Name
+	orderResponse.User = ""
 	if order.Runner != nil {
 		runner, err := dao.GetRunnerById(*order.Runner)
 		if err != nil {
@@ -168,15 +225,15 @@ func UserGetOrderById(c *fiber.Ctx) error {
 		runner.Email = ""
 		return c.Status(200).JSON(fiber.Map{
 			"success": true,
-			"order":   order,
+			"order":   orderResponse,
 			"runner":  runner,
 		})
 	}
+
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
-		"order":   order,
+		"order":   orderResponse,
 	})
-
 }
 
 // Runner Panel

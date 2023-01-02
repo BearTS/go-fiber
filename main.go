@@ -16,16 +16,19 @@ import (
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	// check if .env exists
 
-	if err != nil {
-		log.Fatalf("Some error occured. Err: %s", err)
+	if _, err := os.Stat(".env"); err == nil {
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatalf("Some error occured. Err: %s", err)
+		}
 	}
 	// Define Fiber Config
 	readTimeoutSecondsCount, _ := strconv.Atoi(os.Getenv("SERVER_READ_TIMEOUT"))
 	config := fiber.Config{
 		ReadTimeout: time.Second * time.Duration(readTimeoutSecondsCount),
-		AppName:     "Tez Backend",
+		AppName:     "App Backend",
 	}
 	// Define new app with Fiber config
 	app := fiber.New(config)

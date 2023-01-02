@@ -19,7 +19,7 @@ func UserOnly(c *fiber.Ctx) error {
 	// Parse the token and store it in the "user" key of the Locals map
 	user, err := jwt.Parse(string(token), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte("secret"), nil
 	})
@@ -52,7 +52,7 @@ func RunnerOnly(c *fiber.Ctx) error {
 	// Parse the token and store it in the "runner" key of the Locals map
 	runner, err := jwt.Parse(string(token), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte("secret"), nil
 	})

@@ -1,0 +1,54 @@
+version: "3.8"
+services:
+  mongodb:
+    image: mongo
+    restart: unless-stopped
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=3CYGUkkzW3
+      - MONGO_INITDB_DATABASE=db
+    volumes:
+      - ../db:/data/db
+    networks:
+      - default
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - default
+
+  backend:
+    depends_on:
+      - mongodb
+      - redis
+    build: .
+    container_name: backend
+    restart: always
+    ports:
+      - 6969:5000
+    environment:
+      - MONGO_URI=mongodb://root:3CYGUkkzW3@mongodb:27017
+      - MONGO_DB=db
+      - REDIS_URI=redis://redis:6379
+      - SERVER_PORT=5000
+      - JWT_SECRET=secretxyz
+      - GMAIL_ID=
+      - GMAIL_PASSWORD=
+    stdin_open: true
+    volumes:
+      - ../logs:/usr/src/app/logs
+    tty: true
+    networks:
+      - default
+
+  
+
+networks:
+  default:
+    external:
+      name: docker-network

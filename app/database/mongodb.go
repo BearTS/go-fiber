@@ -12,7 +12,7 @@ import (
 
 func MongoConnectDB() *mongo.Client {
 
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017/go-fiber"))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://root:3CYGUkkzW3@mongodb:27017"))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -3,12 +3,12 @@
 
 # Compile the project
 build:
-	go build -o bin/main .
+	go build -o bin/app .
 
 # Run the program
 run:
-	./main
+	./app
 
 # Clean up
 clean:
-	rm -f main
+	rm -f ./bin/app
